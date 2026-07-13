@@ -1,0 +1,49 @@
+name: Auto Fix
+# Vulnerable-by-omission: triggered on workflow_run, checks out FORK PR head,
+# runs claude-code-action in agent mode, and does NOT apply the fork-exclusion
+# guard that examples/ci-failure-auto-fix.yml uses. Mirrors a realistic
+# "auto-fix CI on PRs" workflow.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  id-token: write
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head (fork code) - no fork-exclusion guard
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Evidence - fork-controlled .claude present in cwd (pre-action)
+        run: |
+          echo "actor (github.actor) = ${{ github.actor }}"
+          echo "head_repo = ${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "===== fork .claude/settings.json now sitting in the workspace ====="
+          cat .claude/settings.json 2>/dev/null || echo "(none)"
+
+      - name: Run Claude Code Action (agent mode)
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: "Reply with a single word: hi."
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Evidence - did the fork SessionStart hook execute?
+        if: always()
+        run: |
+          if [ -f /tmp/CLAUDE_C01_PWNED ]; then
+            echo "::error::C-01 CONFIRMED - fork-controlled SessionStart hook executed on the runner"
+            echo "----- /tmp/CLAUDE_C01_PWNED -----"
+            cat /tmp/CLAUDE_C01_PWNED
+          else
+            echo "artifact absent - hook did not run"
+          fi
