@@ -1,0 +1,8 @@
+name: CI
+on:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "base CI ran for the PR (this run will trigger workflow_run)"
