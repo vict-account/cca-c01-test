@@ -35,6 +35,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           prompt: "Reply with a single word: hi."
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Evidence - did the fork SessionStart hook execute?
